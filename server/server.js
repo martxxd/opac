@@ -1,6 +1,10 @@
 const express = require('express');
 const mysql = require('mysql2');
-const cors = require('cors');  // Import CORS
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const app = express();
 const port = 5000;
 
@@ -21,8 +25,25 @@ db.connect((err) => {
 // Middleware to parse JSON
 app.use(express.json());
 
-// Enable CORS
-app.use(cors());  // Add CORS middleware
+// Middleware to handle CORS
+app.use(cors());
+
+// Security middleware to set various HTTP headers
+app.use(helmet());
+
+// Request logging middleware
+app.use(morgan('combined'));
+
+// Compression middleware to gzip responses
+app.use(compression());
+
+// Rate limiting middleware to prevent abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use(limiter);
 
 // Sample route
 app.get('/', (req, res) => {
@@ -52,6 +73,12 @@ app.post('/books', (req, res) => {
       res.status(201).send('Book added successfully');
     }
   });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!');
 });
 
 // Start the server
